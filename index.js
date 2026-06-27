@@ -3,20 +3,23 @@ const app = express();
 const cors = require('cors')
 const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require('dotenv').config();
 
 // middlewear
-
 app.use(cors());
 app.use(express.json())
 
+// security env
+
+const user =process.env.DB_User;
+const password = process.DB_Password
 
 app.get('/', (req, res) => {
   res.send('EcoTrack Server is running')
 })
 
-// ecoTrackDB
-// QmkIKxtCzZVh9amn
-const uri = "mongodb+srv://ecoTrackDB:QmkIKxtCzZVh9amn@cluster0.yvfnrmq.mongodb.net/?appName=Cluster0";
+
+const uri = `mongodb+srv://${user}:${password}@cluster0.yvfnrmq.mongodb.net/?appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -78,6 +81,8 @@ async function run() {
 
     //  all tips read
     app.get('/tips',async(req,res)=>{
+            console.log('get tips')
+
       const cursorTips =  tipColl.find();
       const result = await cursorTips.toArray();
       res.send(result);
