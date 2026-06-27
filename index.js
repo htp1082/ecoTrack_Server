@@ -12,7 +12,7 @@ app.use(express.json())
 // security env
 
 const user =process.env.DB_User;
-const password = process.DB_Password
+const password = process.env.DB_Password
 
 app.get('/', (req, res) => {
   res.send('EcoTrack Server is running')
@@ -79,6 +79,15 @@ async function run() {
 
     // ===========> tips section <============ //
 
+
+    // tips challenge
+
+    app.get('/tips/latestTips',async(req,res)=>{
+      const latesTipsCursor = tipColl.find().limit(5);
+      const result = await latesTipsCursor.toArray();
+      res.send(result);
+    })
+
     //  all tips read
     app.get('/tips',async(req,res)=>{
             console.log('get tips')
@@ -96,13 +105,6 @@ async function run() {
       res.send(result);
     })
 
-    // tips challenge
-
-    app.get('/tips/latestTips',async(req,res)=>{
-      const latesTipsCursor = tipColl.find().limit(5);
-      const result = await latesTipsCursor.toArray();
-      res.send(result);
-    })
 
     app.post('/tips',async(req,res)=>{
       const id = req.body;
