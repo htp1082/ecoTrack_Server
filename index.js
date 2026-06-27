@@ -164,6 +164,18 @@ async function run() {
     // post event 
 
     app.post('/event',(req,res)=>{
+      const id = req.body;
+      const result = await eventColl.insertOne(id);
+      res.send(result);
+    })
+
+    // get a update event
+
+    app.patch('/',(req,res)=>{
+      const id = req.params.id;
+      const eventUpdate = req.body;
+      const query ={_id: new ObjectId(id)};
+      const upate ={}
       
     })
 
