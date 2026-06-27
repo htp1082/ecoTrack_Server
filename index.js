@@ -77,7 +77,7 @@ async function run() {
     // ===========> tips section <============ //
 
     //  all tips read
-    app.get('tips',async(req,res)=>{
+    app.get('/tips',async(req,res)=>{
       const cursorTips =  tipColl.find();
       const result = await cursorTips.toArray();
       res.send(result);
@@ -113,6 +113,15 @@ async function run() {
         $set: tipsUpdate
       }
       const result = await tipColl.updateOne(query,update)
+      res.send(result)
+    })
+
+    app.delete('/tips/:id', async(req,res)=>{
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await tipColl.deleteOne(query);
+      res.send(result);
+
     })
 
 
