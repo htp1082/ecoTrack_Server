@@ -155,6 +155,18 @@ async function run() {
 
     // get all event
 
+    app.get('/event',(req,res)=>{
+      const cursor = eventColl.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // post event 
+
+    app.post('/event',(req,res)=>{
+      
+    })
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
