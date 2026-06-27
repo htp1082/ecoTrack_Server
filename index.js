@@ -137,12 +137,23 @@ async function run() {
 
     // ========> event <============//
 
-    // get event
-    app.get('/event/latestEvent',(req,res)=>{
+    // get latest event
+    app.get('/event/latestEvent',async(req,res)=>{
       const eventCursor = eventColl.find().limit(4);
       const result = await eventCursor.toArray();
       res.send(result);
     })
+
+    // get a single event by id
+
+    app.get('/event/:id',async(req,res)=>{
+      const eventId = req.params.id;
+      const query ={_id: new ObjectId(eventId)};
+      const result = await eventColl.findOne(query);
+      res.send(result);
+    })
+
+    // get all event
 
 
     // Send a ping to confirm a successful connection
