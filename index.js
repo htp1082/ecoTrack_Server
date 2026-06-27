@@ -36,8 +36,8 @@ async function run() {
 
     const ecoTrackDB = client.db("ecoTrackDB");
     const ecoTackColl = ecoTrackDB.collection("ecoTrack");
-    const tipColl =ecoTrackDB.collection('ecoTips')
-
+    const tipColl =ecoTrackDB.collection('ecoTips');
+    const eventColl = ecoTrackDB.collection('ecoEvent');
 
     // ===========> challege section <============== //
 
@@ -80,20 +80,11 @@ async function run() {
     // ===========> tips section <============ //
 
 
-    // tips challenge
+    // latest tips
 
     app.get('/tips/latestTips',async(req,res)=>{
       const latesTipsCursor = tipColl.find().limit(5);
       const result = await latesTipsCursor.toArray();
-      res.send(result);
-    })
-
-    //  all tips read
-    app.get('/tips',async(req,res)=>{
-            console.log('get tips')
-
-      const cursorTips =  tipColl.find();
-      const result = await cursorTips.toArray();
       res.send(result);
     })
 
@@ -106,12 +97,23 @@ async function run() {
     })
 
 
+    //  all tips read
+    app.get('/tips',async(req,res)=>{
+      const cursorTips =  tipColl.find();
+      const result = await cursorTips.toArray();
+      res.send(result);
+    })
+
+    
+
+    // post 
     app.post('/tips',async(req,res)=>{
       const id = req.body;
       const result =await tipColl.insertOne(id)
       res.send(result)
     })
 
+    // update
     app.patch('/tips/:id',async(req,res)=>{
       const id = req.params.id;
       const tipsUpdate = req.body;
@@ -123,12 +125,23 @@ async function run() {
       res.send(result)
     })
 
+    // delete
     app.delete('/tips/:id', async(req,res)=>{
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
       const result = await tipColl.deleteOne(query);
       res.send(result);
 
+    })
+
+
+    // ========> event <============//
+
+    // get event
+    app.get('/event/latestEvent',(req,res)=>{
+      const eventCursor = eventColl.find().limit(4);
+      const result = await eventCursor.toArray();
+      res.send(result);
     })
 
 
