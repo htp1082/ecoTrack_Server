@@ -11,7 +11,7 @@ app.use(express.json())
 
 // security env
 
-const user =process.env.DB_User;
+const user = process.env.DB_User;
 const password = process.env.DB_Password
 
 app.get('/', (req, res) => {
@@ -36,8 +36,9 @@ async function run() {
 
     const ecoTrackDB = client.db("ecoTrackDB");
     const ecoTackColl = ecoTrackDB.collection("ecoTrack");
-    const tipColl =ecoTrackDB.collection('ecoTips');
+    const tipColl = ecoTrackDB.collection('ecoTips');
     const eventColl = ecoTrackDB.collection('ecoEvent');
+    const userChallengeColl = ecoTrackDB.collection('userChallenge')
 
     // ===========> challege section <============== //
 
@@ -47,7 +48,7 @@ async function run() {
       res.send(result);
     })
 
-     app.get('/challenges/:id', async (req, res) => {
+    app.get('/challenges/:id', async (req, res) => {
       const id = req.params.id;
       console.log(id)
       const query = { _id: new ObjectId(id) };
@@ -62,7 +63,7 @@ async function run() {
       res.send(result);
     })
 
-   
+
     app.post('/challenges', async (req, res) => {
       const id = req.body;
       const result = await ecoTackColl.insertOne(id);
@@ -76,59 +77,89 @@ async function run() {
       res.send(result)
     })
 
+    app.patch('/challenges/join/:id', async (req, res) => {
+      console.log("PATCH HIT");
+      // id server gese
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      // oi idear doc search korse
+      const challengeUpdate = await ecoTackColl.findOne(query);
+      // pawar por participant 1 kore barse
+      const updateChallenge = {
+        $set: {
+          participants: challengeUpdate.participants + 1
+        }
+      }
+
+      // erpor seta update kore dise
+      const updateResult = await ecoTackColl.updateOne(query, updateChallenge)
+
+      // user data save
+      const userData = {
+        userId: req.body.userId,
+        ChallengeId: id,
+        status: 'not started',
+        progress: 0,
+        joinDate: new Date()
+      }
+
+      const finalResult = await userChallengeColl.insertOne(userData);
+      res.send(updateResult, finalResult)
+    })
+
 
     // ===========> tips section <============ //
 
 
     // latest tips
 
-    app.get('/tips/latestTips',async(req,res)=>{
+    app.get('/tips/latestTips', async (req, res) => {
       const latesTipsCursor = tipColl.find().limit(5);
       const result = await latesTipsCursor.toArray();
       res.send(result);
     })
 
     // one tips read
-    app.get('/tips/:id',async(req,res)=>{
+    app.get('/tips/:id', async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await tipColl.findOne(query);
       res.send(result);
     })
 
 
     //  all tips read
-    app.get('/tips',async(req,res)=>{
-      const cursorTips =  tipColl.find();
+    app.get('/tips', async (req, res) => {
+      const cursorTips = tipColl.find();
       const result = await cursorTips.toArray();
       res.send(result);
     })
 
-    
+
 
     // post 
-    app.post('/tips',async(req,res)=>{
+    app.post('/tips', async (req, res) => {
       const id = req.body;
-      const result =await tipColl.insertOne(id)
+      const result = await tipColl.insertOne(id)
       res.send(result)
     })
 
     // update
-    app.patch('/tips/:id',async(req,res)=>{
+    app.patch('/tips/:id', async (req, res) => {
       const id = req.params.id;
       const tipsUpdate = req.body;
-      const query ={_id: new ObjectId(id)}
-      const update ={
+      const query = { _id: new ObjectId(id) }
+      const update = {
         $set: tipsUpdate
       }
-      const result = await tipColl.updateOne(query,update)
+      const result = await tipColl.updateOne(query, update)
       res.send(result)
     })
 
     // delete
-    app.delete('/tips/:id', async(req,res)=>{
+    app.delete('/tips/:id', async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await tipColl.deleteOne(query);
       res.send(result);
 
@@ -138,7 +169,7 @@ async function run() {
     // ========> event <============//
 
     // get latest event
-    app.get('/event/latestEvent',async(req,res)=>{
+    app.get('/event/latestEvent', async (req, res) => {
       const eventCursor = eventColl.find().limit(4);
       const result = await eventCursor.toArray();
       res.send(result);
@@ -146,16 +177,16 @@ async function run() {
 
     // get a single event by id
 
-    app.get('/event/:id',async(req,res)=>{
+    app.get('/event/:id', async (req, res) => {
       const eventId = req.params.id;
-      const query ={_id: new ObjectId(eventId)};
+      const query = { _id: new ObjectId(eventId) };
       const result = await eventColl.findOne(query);
       res.send(result);
     })
 
     // get all event
 
-    app.get('/event',(req,res)=>{
+    app.get('/event', async (req, res) => {
       const cursor = eventColl.find();
       const result = await cursor.toArray();
       res.send(result);
@@ -163,7 +194,7 @@ async function run() {
 
     // post event 
 
-    app.post('/event',(req,res)=>{
+    app.post('/event', async (req, res) => {
       const id = req.body;
       const result = await eventColl.insertOne(id);
       res.send(result);
@@ -171,12 +202,26 @@ async function run() {
 
     // get a update event
 
-    app.patch('/',(req,res)=>{
+    app.patch('/event/:id', async (req, res) => {
       const id = req.params.id;
       const eventUpdate = req.body;
-      const query ={_id: new ObjectId(id)};
-      const upate ={}
-      
+      const query = { _id: new ObjectId(id) };
+      const upate = {
+        $set: eventUpdate
+      }
+
+      const result = await eventColl.updateOne(query, upate);
+      res.send(result);
+
+    })
+
+    // delete a event
+
+    app.delete('/event/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await eventColl.deleteOne(query);
+      res.send(result);
     })
 
 
