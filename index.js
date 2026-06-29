@@ -77,6 +77,20 @@ async function run() {
       res.send(result)
     })
 
+
+    // find the  join email or id
+      app.get('/join/:email/:id',async(req,res)=>{
+        const id = req.params.id;
+        const email = req.params.email;
+        
+         const userData ={
+          userId: email,
+          challengeId:id
+         }
+        const result = await userChallengeColl.findOne(userData)
+        res.send(result);
+      })
+
     app.patch('/challenges/join/:id', async (req, res) => {
       console.log("PATCH HIT");
       // id server gese
@@ -97,7 +111,7 @@ async function run() {
       // user data save
       const userData = {
         userId: req.body.userId,
-        ChallengeId: id,
+        challengeId: id,
         status: 'not started',
         progress: 0,
         joinDate: new Date()
