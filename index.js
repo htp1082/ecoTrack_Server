@@ -56,6 +56,105 @@ async function run() {
       res.send(result)
     })
 
+    // app.get('/myActivity/:email', async (req, res) => {
+    //   const email = req.params.email;
+    //   const joinChallengeUser = userChallengeColl.find({
+    //     userId: email
+    //   })
+    //   const result = await joinChallengeUser.toArray();
+    //   const myActivities = []
+
+    //   for (let item of result) {
+
+    //     const query = {
+    //       _id: new ObjectId(item.challengeId)
+    //     }
+
+    //     console.log(query)
+
+    //     const challenge = await ecoTackColl.findOne(query)
+    //     // challenge.progress = item.progress;
+    //     challenge.status = item.status;
+    //     challenge.joinDate = item.joinDate;
+
+    //     myActivities.push(challenge)
+
+    //   }
+
+    //   res.send(myActivities)
+
+    // })
+
+    // app.get('/myActivity/:email', async (req, res) => {
+    //   const email = req.params.email;
+
+    //   const result = await userChallengeColl.find({
+    //     userId: email
+    //   }).toArray();
+
+    //   const myActivities = [];
+
+    //   for (const item of result) {
+    //     console.log("User Challenge:", item);
+
+    //     const challenge = await ecoTackColl.findOne({
+    //       _id: new ObjectId(item.challengeId)
+    //     });
+
+    //     console.log("Challenge:", challenge);
+
+    //     if (!challenge) {
+    //       console.log("Challenge not found:", item.challengeId);
+    //       continue;
+    //     }
+
+    //     challenge.status = item.status;
+    //     challenge.joinDate = item.joinDate;
+    //     challenge.progress = item.progress;
+
+    //     myActivities.push(challenge);
+    //   }
+
+    //   res.send(myActivities);
+    // });
+
+app.get('/myActivity/:email', async (req, res) => {
+  try {
+    const email = req.params.email;
+
+    const joinedChallenges = await userChallengeColl
+      .find({ userId: email })
+      .toArray();
+
+    const myActivities = [];
+
+    for (const item of joinedChallenges) {
+
+      if (!ObjectId.isValid(item.challengeId)) {
+        continue;
+      }
+
+      const challenge = await ecoTackColl.findOne({
+        _id: new ObjectId(item.challengeId)
+      });
+
+      if (!challenge) continue;
+
+      myActivities.push({
+        ...challenge,
+        progress: item.progress,
+        status: item.status,
+        joinDate: item.joinDate
+      });
+    }
+
+    res.send(myActivities);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(err.message);
+  }
+});
 
     app.get('/challenges', async (req, res) => {
       const cursor = ecoTackColl.find();
@@ -77,19 +176,32 @@ async function run() {
       res.send(result)
     })
 
+    app.patch('/challenges/:id', async (req, res) => {
+      const id = req.params.id;
+      const challengeUpdate = req.body;
+      const query = {
+        _id: new ObjectId(id)
+      }
+      const update = {
+        $set: challengeUpdate
+      }
+      const result = await ecoTackColl.updateOne(query, update);
+      res.send(result)
+    })
+
 
     // find the  join email or id
-      app.get('/join/:email/:id',async(req,res)=>{
-        const id = req.params.id;
-        const email = req.params.email;
-        
-         const userData ={
-          userId: email,
-          challengeId:id
-         }
-        const result = await userChallengeColl.findOne(userData)
-        res.send(result);
-      })
+    app.get('/join/:email/:id', async (req, res) => {
+      const id = req.params.id;
+      const email = req.params.email;
+
+      const userData = {
+        userId: email,
+        challengeId: id
+      }
+      const result = await userChallengeColl.findOne(userData)
+      res.send(result);
+    })
 
     app.patch('/challenges/join/:id', async (req, res) => {
       console.log("PATCH HIT");
@@ -121,11 +233,6 @@ async function run() {
       res.send(updateResult, finalResult)
     })
 
-
-    // ===========> tips section <============ //
-
-
-    // latest tips
 
     app.get('/tips/latestTips', async (req, res) => {
       const latesTipsCursor = tipColl.find().limit(5);
