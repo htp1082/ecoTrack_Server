@@ -56,68 +56,7 @@ async function run() {
       res.send(result)
     })
 
-    // app.get('/myActivity/:email', async (req, res) => {
-    //   const email = req.params.email;
-    //   const joinChallengeUser = userChallengeColl.find({
-    //     userId: email
-    //   })
-    //   const result = await joinChallengeUser.toArray();
-    //   const myActivities = []
-
-    //   for (let item of result) {
-
-    //     const query = {
-    //       _id: new ObjectId(item.challengeId)
-    //     }
-
-    //     console.log(query)
-
-    //     const challenge = await ecoTackColl.findOne(query)
-    //     // challenge.progress = item.progress;
-    //     challenge.status = item.status;
-    //     challenge.joinDate = item.joinDate;
-
-    //     myActivities.push(challenge)
-
-    //   }
-
-    //   res.send(myActivities)
-
-    // })
-
-    // app.get('/myActivity/:email', async (req, res) => {
-    //   const email = req.params.email;
-
-    //   const result = await userChallengeColl.find({
-    //     userId: email
-    //   }).toArray();
-
-    //   const myActivities = [];
-
-    //   for (const item of result) {
-    //     console.log("User Challenge:", item);
-
-    //     const challenge = await ecoTackColl.findOne({
-    //       _id: new ObjectId(item.challengeId)
-    //     });
-
-    //     console.log("Challenge:", challenge);
-
-    //     if (!challenge) {
-    //       console.log("Challenge not found:", item.challengeId);
-    //       continue;
-    //     }
-
-    //     challenge.status = item.status;
-    //     challenge.joinDate = item.joinDate;
-    //     challenge.progress = item.progress;
-
-    //     myActivities.push(challenge);
-    //   }
-
-    //   res.send(myActivities);
-    // });
-
+  // my challenge api
 app.get('/myActivity/:email', async (req, res) => {
   try {
     const email = req.params.email;
@@ -156,6 +95,8 @@ app.get('/myActivity/:email', async (req, res) => {
   }
 });
 
+
+// get the all challenge
     app.get('/challenges', async (req, res) => {
       const cursor = ecoTackColl.find();
       const result = await cursor.toArray()
@@ -188,7 +129,6 @@ app.get('/myActivity/:email', async (req, res) => {
       const result = await ecoTackColl.updateOne(query, update);
       res.send(result)
     })
-
 
     // find the  join email or id
     app.get('/join/:email/:id', async (req, res) => {
@@ -231,6 +171,14 @@ app.get('/myActivity/:email', async (req, res) => {
 
       const finalResult = await userChallengeColl.insertOne(userData);
       res.send(updateResult, finalResult)
+    })
+
+    // delete funtion
+    app.delete('/challenges/:id',async(req,res)=>{
+       const id = req.params.id;
+       const query ={_id: new ObjectId(id)};
+       const result = await ecoTackColl.deleteOne(query)
+       res.send(result)
     })
 
 
