@@ -14,6 +14,31 @@ app.use(express.json())
 const user = process.env.DB_User;
 const password = process.env.DB_Password
 
+var admin = require("firebase-admin");
+var serviceAccount = require("./htp-marketplace-firebase-adminsdk-fbsvc-.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+const verifyIdToken = async (req, res, next) => {
+    console.log('verify middleware', req.headers.authorization);
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(400).send({ message: `Authorization header is missing` })
+    }
+    const idtoken = authHeader.split(' ')[1];
+    try {
+        const decode = await admin.auth().verifyIdToken(idtoken);
+        req.token_email = decode.email;
+        next();
+    }
+    catch (eror) {
+        res.status(401).send({ message: `Forbidden access` })
+    }
+};
+
+
 app.get('/', (req, res) => {
   res.send('EcoTrack Server is running')
 })
@@ -56,47 +81,48 @@ async function run() {
       res.send(result)
     })
 
-  // my challenge api
-app.get('/myActivity/:email', async (req, res) => {
-  try {
-    const email = req.params.email;
+    // my challenge api
+    app.get('/myActivity/:email', async (req, res) => {
+      try {
+        const email = req.params.email;
 
-    const joinedChallenges = await userChallengeColl
-      .find({ userId: email })
-      .toArray();
+        const joinedChallenges = await userChallengeColl
+          .find({ userId: email })
+          .toArray();
 
-    const myActivities = [];
+        const myActivities = [];
 
-    for (const item of joinedChallenges) {
+        for (const item of joinedChallenges) {
 
-      if (!ObjectId.isValid(item.challengeId)) {
-        continue;
+          if (!ObjectId.isValid(item.challengeId)) {
+            continue;
+          }
+
+          const challenge = await ecoTackColl.findOne({
+            _id: new ObjectId(item.challengeId)
+          });
+
+          if (!challenge) continue;
+
+          myActivities.push({
+            ...challenge,
+            userChallengeId: item._id,
+            progress: item.progress,
+            status: item.status,
+            joinDate: item.joinDate
+          });
+        }
+
+        res.send(myActivities);
+
+      } catch (err) {
+        console.log(err);
+        res.status(500).send(err.message);
       }
-
-      const challenge = await ecoTackColl.findOne({
-        _id: new ObjectId(item.challengeId)
-      });
-
-      if (!challenge) continue;
-
-      myActivities.push({
-        ...challenge,
-        progress: item.progress,
-        status: item.status,
-        joinDate: item.joinDate
-      });
-    }
-
-    res.send(myActivities);
-
-  } catch (err) {
-    console.log(err);
-    res.status(500).send(err.message);
-  }
-});
+    });
 
 
-// get the all challenge
+    // get the all challenge
     app.get('/challenges', async (req, res) => {
       const cursor = ecoTackColl.find();
       const result = await cursor.toArray()
@@ -104,7 +130,7 @@ app.get('/myActivity/:email', async (req, res) => {
     })
 
 
-    app.post('/challenges', async (req, res) => {
+    app.post('/challenges',verifyIdToken,async (req, res) => {
       const id = req.body;
       const result = await ecoTackColl.insertOne(id);
       res.send(result)
@@ -117,7 +143,7 @@ app.get('/myActivity/:email', async (req, res) => {
       res.send(result)
     })
 
-    app.patch('/challenges/:id', async (req, res) => {
+    app.patch('/challenges/:id', verifyIdToken, async (req, res) => {
       const id = req.params.id;
       const challengeUpdate = req.body;
       const query = {
@@ -131,7 +157,7 @@ app.get('/myActivity/:email', async (req, res) => {
     })
 
     // find the  join email or id
-    app.get('/join/:email/:id', async (req, res) => {
+    app.get('/join/:email/:id', verifyIdToken, async (req, res) => {
       const id = req.params.id;
       const email = req.params.email;
 
@@ -143,7 +169,36 @@ app.get('/myActivity/:email', async (req, res) => {
       res.send(result);
     })
 
-    app.patch('/challenges/join/:id', async (req, res) => {
+    // progressbar update data
+    app.patch('/myActivity/:id', verifyIdToken, async (req, res) => {
+      const id = req.params.id;
+      const { status } = req.body;
+
+      console.log("PATCH ID:", id);
+      console.log("STATUS:", status);
+
+      const query = { _id: new ObjectId(id) };
+
+      const existing = await userChallengeColl.findOne(query);
+      console.log("FOUND DOCUMENT:", existing);
+
+      let progress = 0;
+
+      if (status === "Not Started") progress = 0;
+      else if (status === "Ongoing") progress = 50;
+      else if (status === "Finished") progress = 100;
+
+      const result = await userChallengeColl.updateOne(query, {
+        $set: { status, progress }
+      });
+
+      console.log(result);
+
+      res.send(result);
+    });
+
+    // update
+    app.patch('/challenges/join/:id', verifyIdToken, async (req, res) => {
       console.log("PATCH HIT");
       // id server gese
       const id = req.params.id;
@@ -164,7 +219,7 @@ app.get('/myActivity/:email', async (req, res) => {
       const userData = {
         userId: req.body.userId,
         challengeId: id,
-        status: 'not started',
+        status: 'Not Started',
         progress: 0,
         joinDate: new Date()
       }
@@ -174,12 +229,15 @@ app.get('/myActivity/:email', async (req, res) => {
     })
 
     // delete funtion
-    app.delete('/challenges/:id',async(req,res)=>{
-       const id = req.params.id;
-       const query ={_id: new ObjectId(id)};
-       const result = await ecoTackColl.deleteOne(query)
-       res.send(result)
+    app.delete('/challenges/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await ecoTackColl.deleteOne(query)
+      res.send(result)
     })
+
+
+    //==============> tips <===================//
 
 
     app.get('/tips/latestTips', async (req, res) => {
