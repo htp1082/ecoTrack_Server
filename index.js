@@ -14,28 +14,35 @@ app.use(express.json())
 const user = process.env.DB_User;
 const password = process.env.DB_Password
 
-var admin = require("firebase-admin");
-var serviceAccount = require("./htp-marketplace-firebase-adminsdk-fbsvc-.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+const admin = require("firebase-admin");
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
+const serviceAccount = require("./htp-marketplace-firebase-adminsdk-fbsvc-.json");
+
+// 
+initializeApp({
+  credential: cert(serviceAccount)
 });
-
 const verifyIdToken = async (req, res, next) => {
-    console.log('verify middleware', req.headers.authorization);
+  console.log('verify middleware', req.headers.authorization);
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        return res.status(400).send({ message: `Authorization header is missing` })
-    }
-    const idtoken = authHeader.split(' ')[1];
-    try {
-        const decode = await admin.auth().verifyIdToken(idtoken);
-        req.token_email = decode.email;
-        next();
-    }
-    catch (eror) {
-        res.status(401).send({ message: `Forbidden access` })
-    }
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(400).send({ message: `Authorization header is missing` })
+  }
+  const idtoken = authHeader.split(' ')[1];
+  try {
+    const decode = await admin.auth().verifyIdToken(idtoken);
+    req.token_email = decode.email;
+    next();
+  }
+  catch (eror) {
+    res.status(401).send(
+      {
+        message: `Forbidden access`,
+        error: error.message
+      })
+  }
 };
 
 
@@ -130,7 +137,7 @@ async function run() {
     })
 
 
-    app.post('/challenges',verifyIdToken,async (req, res) => {
+    app.post('/challenges', verifyIdToken, async (req, res) => {
       const id = req.body;
       const result = await ecoTackColl.insertOne(id);
       res.send(result)
@@ -174,28 +181,28 @@ async function run() {
       const id = req.params.id;
       const { status } = req.body;
 
-      console.log("PATCH ID:", id);
+      console.log("ID:", id);
       console.log("STATUS:", status);
-
       const query = { _id: new ObjectId(id) };
-
       const existing = await userChallengeColl.findOne(query);
-      console.log("FOUND DOCUMENT:", existing);
-
+      console.log("FOUND:", existing);
       let progress = 0;
+      if (status === "not started") progress = 0;
+      else if (status === "ongoing") progress = 50;
+      else if (status === "finished") progress = 100;
 
-      if (status === "Not Started") progress = 0;
-      else if (status === "Ongoing") progress = 50;
-      else if (status === "Finished") progress = 100;
-
+      console.log("PROGRESS:", progress);
       const result = await userChallengeColl.updateOne(query, {
-        $set: { status, progress }
+        $set: {
+          status,
+          progress
+        }
       });
 
-      console.log(result);
-
+      console.log("UPDATE RESULT:", result);
       res.send(result);
     });
+
 
     // update
     app.patch('/challenges/join/:id', verifyIdToken, async (req, res) => {
