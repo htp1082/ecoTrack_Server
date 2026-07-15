@@ -10,46 +10,8 @@ app.use(cors());
 app.use(express.json())
 
 // security env
-
 const user = process.env.DB_User;
 const password = process.env.DB_Password
-
-const admin = require("firebase-admin");
-const { initializeApp, cert } = require('firebase-admin/app');
-const { getAuth } = require('firebase-admin/auth');
-const serviceAccount = require("./htp-marketplace-firebase-adminsdk-fbsvc-.json");
-
-// 
-initializeApp({
-  credential: cert(serviceAccount)
-});
-const verifyIdToken = async (req, res, next) => {
-  console.log('verify middleware', req.headers.authorization);
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(400).send({ message: `Authorization header is missing` })
-  }
-  const idtoken = authHeader.split(' ')[1];
-  try {
-    const decode = await admin.auth().verifyIdToken(idtoken);
-    req.token_email = decode.email;
-    next();
-  }
-  catch (eror) {
-    res.status(401).send(
-      {
-        message: `Forbidden access`,
-        error: error.message
-      })
-  }
-};
-
-
-app.get('/', (req, res) => {
-  res.send('EcoTrack Server is running')
-})
-
 
 const uri = `mongodb+srv://${user}:${password}@cluster0.yvfnrmq.mongodb.net/?appName=Cluster0`;
 
@@ -61,6 +23,7 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -87,6 +50,27 @@ async function run() {
       const result = await ecoTackColl.findOne(query)
       res.send(result)
     })
+
+    app.patch('/myActivity/:id', async (req, res) => {
+      const id = req.params.id;
+      const { status } = req.body;
+
+      const progress =
+        status === 'not started' ? 0 :
+          status === 'ongoing' ? 50 : 100;
+
+      const result = await userChallengeColl.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            status: status,
+            progress: progress
+          }
+        }
+      );
+
+      res.send(result);
+    });
 
     // my challenge api
     app.get('/myActivity/:email', async (req, res) => {
@@ -137,7 +121,7 @@ async function run() {
     })
 
 
-    app.post('/challenges', verifyIdToken, async (req, res) => {
+    app.post('/challenges', async (req, res) => {
       const id = req.body;
       const result = await ecoTackColl.insertOne(id);
       res.send(result)
@@ -150,7 +134,7 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/challenges/:id', verifyIdToken, async (req, res) => {
+    app.patch('/challenges/:id', async (req, res) => {
       const id = req.params.id;
       const challengeUpdate = req.body;
       const query = {
@@ -164,7 +148,7 @@ async function run() {
     })
 
     // find the  join email or id
-    app.get('/join/:email/:id', verifyIdToken, async (req, res) => {
+    app.get('/join/:email/:id', async (req, res) => {
       const id = req.params.id;
       const email = req.params.email;
 
@@ -177,35 +161,9 @@ async function run() {
     })
 
     // progressbar update data
-    app.patch('/myActivity/:id', verifyIdToken, async (req, res) => {
-      const id = req.params.id;
-      const { status } = req.body;
-
-      console.log("ID:", id);
-      console.log("STATUS:", status);
-      const query = { _id: new ObjectId(id) };
-      const existing = await userChallengeColl.findOne(query);
-      console.log("FOUND:", existing);
-      let progress = 0;
-      if (status === "not started") progress = 0;
-      else if (status === "ongoing") progress = 50;
-      else if (status === "finished") progress = 100;
-
-      console.log("PROGRESS:", progress);
-      const result = await userChallengeColl.updateOne(query, {
-        $set: {
-          status,
-          progress
-        }
-      });
-
-      console.log("UPDATE RESULT:", result);
-      res.send(result);
-    });
-
 
     // update
-    app.patch('/challenges/join/:id', verifyIdToken, async (req, res) => {
+    app.patch('/challenges/join/:id', async (req, res) => {
       console.log("PATCH HIT");
       // id server gese
       const id = req.params.id;
@@ -226,7 +184,7 @@ async function run() {
       const userData = {
         userId: req.body.userId,
         challengeId: id,
-        status: 'Not Started',
+        status: 'not started',
         progress: 0,
         joinDate: new Date()
       }
@@ -246,7 +204,6 @@ async function run() {
 
     //==============> tips <===================//
 
-
     app.get('/tips/latestTips', async (req, res) => {
       const latesTipsCursor = tipColl.find().limit(5);
       const result = await latesTipsCursor.toArray();
@@ -261,15 +218,12 @@ async function run() {
       res.send(result);
     })
 
-
     //  all tips read
     app.get('/tips', async (req, res) => {
       const cursorTips = tipColl.find();
       const result = await cursorTips.toArray();
       res.send(result);
     })
-
-
 
     // post 
     app.post('/tips', async (req, res) => {
