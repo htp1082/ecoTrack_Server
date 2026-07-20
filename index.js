@@ -13,6 +13,36 @@ app.use(express.json())
 const user = process.env.DB_User;
 const password = process.env.DB_Password
 
+const admin = require("firebase-admin");
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
+const serviceAccount = require("./htp-marketplace-firebase-adminsdk-fbsvc-2.json");
+
+initializeApp({
+  credential: cert(serviceAccount)
+});
+
+const veryFyIdtoken = async (req, res, next) => {
+  console.log('veryfy Middleweare', req.headers.authorization)
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(400).send({ message: `authorization header is missing` })
+  }
+
+  const idToken = authHeader.split(' ')[1]
+  try {
+    const decode = await getAuth().verifyIdToken(idToken)
+    req.token_email = decode.email;
+    next()
+  }
+  catch (eror) {
+    console.log("Veryfy Eror", eror)
+    return res.status(401).send({ message: 'Forbidden access', 
+      eror: eror.message
+    })
+  }
+}
+
 const uri = `mongodb+srv://${user}:${password}@cluster0.yvfnrmq.mongodb.net/?appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -51,7 +81,7 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/myActivity/:id', async (req, res) => {
+    app.patch('/myActivity/:id', veryFyIdtoken, async (req, res) => {
       const id = req.params.id;
       const { status } = req.body;
 
@@ -73,7 +103,7 @@ async function run() {
     });
 
     // my challenge api
-    app.get('/myActivity/:email', async (req, res) => {
+    app.get('/myActivity/:email', veryFyIdtoken, async (req, res) => {
       try {
         const email = req.params.email;
 
@@ -112,8 +142,40 @@ async function run() {
       }
     });
 
+    // app.get('/myActivity/:email', async (req, res) => {
+    //   const email = req.params.email;
+
+    //   const userCallengeFoundbyEamil = {
+    //     userId: email
+    //   }
+    //   const result = await userChallengeColl.find(userCallengeFoundbyEamil).toArray();
+
+    //   const myActivites = []
+
+    //   for (const item of result) {
+
+    //     const query ={_id: new ObjectId(item.challengeId)};
+
+    //     const challenge = await ecoTackColl.findOne(query)
+
+    //     myActivites.push({
+    //       ...challenge,
+    //       userChallengeId: item._id,
+    //         progress: item.progress,
+    //         status: item.status,
+    //         joinDate: item.joinDate
+    //     })
+
+    //   }
+
+    //   res.send(myActivites)
+
+
+    // })
+
 
     // get the all challenge
+
     app.get('/challenges', async (req, res) => {
       const cursor = ecoTackColl.find();
       const result = await cursor.toArray()
@@ -160,6 +222,8 @@ async function run() {
       res.send(result);
     })
 
+
+
     // progressbar update data
 
     // update
@@ -192,6 +256,8 @@ async function run() {
       const finalResult = await userChallengeColl.insertOne(userData);
       res.send(updateResult, finalResult)
     })
+
+
 
     // delete funtion
     app.delete('/challenges/:id', async (req, res) => {
