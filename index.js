@@ -105,10 +105,15 @@ async function run() {
     // my challenge api
     app.get('/myActivity/:email', veryFyIdtoken, async (req, res) => {
       try {
-        const email = req.params.email;
+        const requestedEmail = req.params.email;
+        const tokenEmail = req.params.token_email;
+
+        if( requestedEmail !== tokenEmail){
+          return res.status(403).send({message:'You are not authorized to view this user\'s activities'})
+        }
 
         const joinedChallenges = await userChallengeColl
-          .find({ userId: email })
+          .find({ userId: requestedEmail })
           .toArray();
 
         const myActivities = [];
